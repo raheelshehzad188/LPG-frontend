@@ -57,14 +57,14 @@ export default function AdminSettings() {
         <Settings className="w-8 h-8 text-primary" />
         <div>
           <h1 className="text-2xl font-bold text-white">System Settings</h1>
-          <p className="text-slate-400 text-sm">Lead expiry time aur system-wide options</p>
+          <p className="text-slate-400 text-sm">Lead expiry time and system-wide options</p>
         </div>
       </div>
 
       <div className="rounded-xl bg-white/5 border border-white/10 p-6 max-w-xl">
         <h2 className="text-lg font-semibold text-white mb-4">Lead Expire Time</h2>
         <p className="text-slate-400 text-sm mb-4">
-          Agar partner X minutes ke andar lead accept nahi karta, lead unlink ho jayegi aur dobara assign ho sakti hai.
+          If partner does not accept the lead within X minutes, it will be unlinked and can be reassigned.
         </p>
 
         {loading ? (

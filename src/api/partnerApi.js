@@ -54,19 +54,26 @@ const DEFAULT_EXPIRE_MINUTES = 5
 function normalizeLead(l) {
   if (!l) return null
   let expiresAt = l.expiresAt ?? l.expires_at
-  const assignedAt = l.assignedAt ?? l.assigned_at
+  const assignedAt = l.assignedAt ?? l.assigned_at  // API: "2024-02-28T12:05:00+00:00"
   const createdAt = l.createdAt ?? l.created_at
   const status = l.status ?? 'new'
 
-  // Agar expiresAt nahi aaya aur lead new hai — assigned_at ya created_at + 5 min se compute karo
+  // Backend assignedAt bhej raha hai — is se expiry nikaalo (assignedAt + 5 min)
+  if (!expiresAt && status === 'new' && assignedAt) {
+    const baseMs = typeof assignedAt === 'number' ? assignedAt : new Date(assignedAt).getTime()
+    expiresAt = isNaN(baseMs) ? Date.now() + DEFAULT_EXPIRE_MINUTES * 60 * 1000 : baseMs + DEFAULT_EXPIRE_MINUTES * 60 * 1000
+  }
+  // Fallback: createdAt ya abhi ka time
   if (!expiresAt && status === 'new') {
     const base = assignedAt || createdAt || new Date().toISOString()
     const baseMs = typeof base === 'number' ? base : new Date(base).getTime()
-    expiresAt = baseMs + DEFAULT_EXPIRE_MINUTES * 60 * 1000
+    expiresAt = isNaN(baseMs) ? Date.now() + DEFAULT_EXPIRE_MINUTES * 60 * 1000 : baseMs + DEFAULT_EXPIRE_MINUTES * 60 * 1000
   }
   if (typeof expiresAt === 'string') expiresAt = new Date(expiresAt).getTime()
+  if (typeof expiresAt !== 'number' || isNaN(expiresAt)) expiresAt = status === 'new' ? Date.now() + DEFAULT_EXPIRE_MINUTES * 60 * 1000 : null
 
   return {
+    ...l,
     id: l.id,
     name: l.name ?? l.userName ?? l.user_name ?? '—',
     userName: l.userName ?? l.user_name ?? l.name ?? '—',
@@ -80,7 +87,6 @@ function normalizeLead(l) {
     createdAt: createdAt ?? '',
     assignedAt: assignedAt ?? null,
     expiresAt,
-    ...l,
   }
 }
 

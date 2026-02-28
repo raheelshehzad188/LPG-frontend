@@ -13,34 +13,30 @@ import {
 import { KANBAN_COLUMNS } from '../data/mockLeads'
 import { getPartnerLeads, acceptLead, rejectLead, updateLeadStatus } from '../api/partnerApi'
 
-function LeadCard({ lead, onAccept, onReject, onMove, onExpired }) {
-  const [timeLeft, setTimeLeft] = useState({ ms: 0, expired: false })
+function LeadCard({ lead, onAccept, onReject, onMove, onExpired, now }) {
   const expiredFired = React.useRef(false)
   const isNew = lead.status === 'new'
 
-  useEffect(() => {
-    if (!isNew || !lead.expiresAt) return
-    const tick = () => {
-      const ms = lead.expiresAt - Date.now()
-      if (ms <= 0 && !expiredFired.current) {
-        expiredFired.current = true
-        onExpired?.()
-      }
-      setTimeLeft({ ms: Math.max(0, ms), expired: ms <= 0 })
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [isNew, lead.expiresAt, onExpired])
+  // Single parent interval se aaya hua now — koi alag setInterval nahi
+  const timeLeftMs = isNew && lead.expiresAt ? Math.max(0, lead.expiresAt - now) : 0
+  const expired = isNew && (lead.expiresAt && lead.expiresAt <= now)
 
-  const expired = isNew && (timeLeft.expired || (lead.expiresAt && Date.now() > lead.expiresAt))
+  // Sirf ek baar onExpired fire karo — jaisa hi time ho, list se hatao + background fetch
+  useEffect(() => {
+    if (isNew && expired && !expiredFired.current) {
+      expiredFired.current = true
+      onExpired?.(lead)
+    }
+  }, [isNew, expired, onExpired, lead])
+
+  const timeLeft = { ms: timeLeftMs, expired }
   const assignedMs = lead.assignedAt ? (typeof lead.assignedAt === 'number' ? lead.assignedAt : new Date(lead.assignedAt).getTime()) : null
   const totalDurationMs = lead.expiresAt && assignedMs ? lead.expiresAt - assignedMs : 5 * 60 * 1000
   const progressPct = totalDurationMs > 0 ? Math.min(100, (timeLeft.ms / totalDurationMs) * 100) : 0
   const isUrgent = timeLeft.ms > 0 && timeLeft.ms < 60 * 1000 // < 1 min
 
   const formatTime = (ms) => {
-    if (ms <= 0) return '0:00'
+    if (typeof ms !== 'number' || isNaN(ms) || ms <= 0) return '0:00'
     const m = Math.floor(ms / 60000)
     const s = Math.floor((ms % 60000) / 1000)
     return `${m}:${s.toString().padStart(2, '0')}`
@@ -77,7 +73,7 @@ function LeadCard({ lead, onAccept, onReject, onMove, onExpired }) {
               </span>
             </div>
             <span className={`text-[10px] font-medium ${expired ? 'text-red-400' : isUrgent ? 'text-amber-400' : 'text-slate-500'}`}>
-              {expired ? 'Expired' : 'baqi'}
+              {expired ? 'Expired' : 'Time left'}
             </span>
           </div>
         )}
@@ -141,20 +137,38 @@ export default function PartnerDashboard() {
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState(null)
   const [agentName, setAgentName] = useState('')
+  const [now, setNow] = useState(() => Date.now())
 
-  const fetchLeads = useCallback(async () => {
-    setLoading(true)
-    setApiError(null)
+  // Sirf 1 interval — poora page ek saath update
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const fetchLeads = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    if (!silent) setApiError(null)
     try {
       const data = await getPartnerLeads()
       setLeads(data.leads || [])
     } catch (err) {
-      setLeads([])
-      setApiError(err.message || 'API failed — GET /api/partner/leads')
+      if (!silent) setLeads([])
+      if (!silent) setApiError(err.message || 'API failed — GET /api/partner/leads')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
+
+  // Expiry hit — turant list se hatao, debounced background fetch (multiple expire = 1 request)
+  const expireFetchRef = React.useRef(null)
+  const handleLeadExpired = useCallback((lead) => {
+    setLeads((prev) => prev.filter((l) => l.id !== lead.id))
+    if (expireFetchRef.current) clearTimeout(expireFetchRef.current)
+    expireFetchRef.current = setTimeout(() => {
+      expireFetchRef.current = null
+      fetchLeads(true)
+    }, 1200)
+  }, [fetchLeads])
 
   useEffect(() => {
     const auth = localStorage.getItem(AUTH_KEY)
@@ -257,7 +271,7 @@ export default function PartnerDashboard() {
         )}
 
         <p className="text-slate-400 text-sm mb-6">
-          Naye lead par timer chalta hai — jitna time baqi hai woh dikhai deta hai. 5 min ke andar accept karo, warna lead unlink ho jayegi. Reject karne par lead agali agency ko assign ho sakti hai.
+          New leads show a timer with the remaining time. Accept within 5 minutes or the lead will be unlinked. Rejected leads can be reassigned to another agency.
         </p>
 
         {loading ? (
@@ -293,10 +307,11 @@ export default function PartnerDashboard() {
                     <LeadCard
                       key={lead.id}
                       lead={lead}
+                      now={now}
                       onAccept={handleAccept}
                       onReject={handleReject}
                       onMove={handleMove}
-                      onExpired={fetchLeads}
+                      onExpired={handleLeadExpired}
                     />
                   ))}
                 </div>
