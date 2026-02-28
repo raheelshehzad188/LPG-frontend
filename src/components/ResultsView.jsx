@@ -1,4 +1,5 @@
 import React from 'react'
+import { getPropertyImageSrc } from '../utils/propertyImage'
 
 const MOCK_PROPERTIES = [
   {
@@ -62,7 +63,7 @@ export default function ResultsView({ data }) {
             >
               <div className="relative h-40 sm:h-44 bg-slate-700">
                 <img
-                  src={prop.image}
+                  src={getPropertyImageSrc(prop)}
                   alt={prop.title}
                   className="w-full h-full object-cover"
                 />

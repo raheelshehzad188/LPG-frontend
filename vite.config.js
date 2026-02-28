@@ -15,6 +15,10 @@ export default defineConfig({
       '/api_new_ai': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true
+      },
+      '/property': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true
       }
     }
   }

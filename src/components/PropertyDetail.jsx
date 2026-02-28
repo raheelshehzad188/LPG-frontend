@@ -15,6 +15,8 @@ import {
   MessageCircle,
 } from 'lucide-react'
 import { getListingById } from '../data/mockListings'
+import { getPropertyImageUrl, resolveGalleryUrls } from '../utils/propertyImage'
+import { PROPERTY_IMAGE_PLACEHOLDER } from '../config'
 import ROICalculator from './ROICalculator'
 
 const fadeUp = {
@@ -31,7 +33,7 @@ const DETAIL_FALLBACK = {
   rentalYield: '6.2%',
   whyThisProperty: ['Strong appreciation potential.', 'Good rental demand.', 'Verified documentation.'],
   legalStatus: 'LDA Approved',
-  gallery: ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&h=600&fit=crop'],
+  gallery: [PROPERTY_IMAGE_PLACEHOLDER],
 }
 
 export default function PropertyDetail() {
@@ -43,18 +45,20 @@ export default function PropertyDetail() {
 
   const fromState = state?.listing
   const fromMock = getListingById(id)
+  const rawGallery =
+    fromState &&
+    (Array.isArray(fromState.gallery) && fromState.gallery.length
+      ? fromState.gallery
+      : Array.isArray(fromState.images) && fromState.images.length
+        ? [fromState.cover_photo || fromState.images[0], ...fromState.images].filter(Boolean)
+        : fromState.cover_photo || fromState.image
+          ? [fromState.cover_photo || fromState.image]
+          : null)
   const property = fromState
     ? {
         ...DETAIL_FALLBACK,
         ...fromState,
-        gallery:
-          Array.isArray(fromState.gallery) && fromState.gallery.length
-            ? fromState.gallery
-            : Array.isArray(fromState.images) && fromState.images.length
-              ? [fromState.cover_photo || fromState.images[0], ...fromState.images]
-              : fromState.cover_photo || fromState.image
-                ? [fromState.cover_photo || fromState.image]
-                : DETAIL_FALLBACK.gallery,
+        gallery: rawGallery ? resolveGalleryUrls(rawGallery) : DETAIL_FALLBACK.gallery,
       }
     : fromMock
 

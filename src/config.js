@@ -10,6 +10,14 @@
 const defaultUrl = import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? defaultUrl).replace(/\/+$/, '') || ''
 
+// Property images — same domain as backend. Dev: relative /property/ (proxy). Prod: full URL.
+// e.g. API returns "53396901_cover.jpg" → /property/53396901_cover.jpg or http://.../property/53396901_cover.jpg
+const imagesDefault = import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
+export const PROPERTY_IMAGES_BASE = (import.meta.env.VITE_PROPERTY_IMAGES_URL ?? import.meta.env.VITE_API_BASE_URL ?? imagesDefault).replace(/\/+$/, '') ?? imagesDefault
+
+// Placeholder when no image (single place — no hardcode elsewhere)
+export const PROPERTY_IMAGE_PLACEHOLDER = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=260&fit=crop'
+
 // AI chat API (api_new_ai.php) — full URL set karo agar proxy 404 de raha hai
 // .env: VITE_AI_API_URL=http://localhost/propert_paython/api_new_ai.php
 export const AI_API_FULL_URL = (import.meta.env.VITE_AI_API_URL ?? '').replace(/\/+$/, '') || ''

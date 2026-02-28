@@ -1,4 +1,7 @@
 import React, { useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { MapPin } from 'lucide-react'
+import { getPropertyImageSrc } from '../utils/propertyImage'
 import AIAssistant from './AIAssistant'
 
 export default function ListingsView({
@@ -30,12 +33,22 @@ export default function ListingsView({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {displayListings && displayListings.map((prop) => (
               <div key={prop.id} className="rounded-2xl overflow-hidden bg-white/5 border border-white/10 p-2 transition-all hover:border-primary/50">
-                 <img src={prop.image || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=260&fit=crop'} alt="" className="w-full h-44 object-cover rounded-xl" />
-                 <div className="p-3">
-                   <h4 className="text-white font-bold">{prop.title}</h4>
-                   <p className="text-primary font-semibold">{prop.price}</p>
-                   <p className="text-slate-400 text-sm">{prop.location}</p>
-                 </div>
+                <img src={getPropertyImageSrc(prop)} alt="" className="w-full h-44 object-cover rounded-xl" />
+                <div className="p-3">
+                  <p className="text-primary text-sm font-medium flex items-center gap-1 mb-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {prop.location_name || prop.area || prop.location || '—'}
+                  </p>
+                  <h4 className="text-white font-bold">{prop.title}</h4>
+                  <p className="text-primary font-semibold mt-1">{prop.price}</p>
+                  <Link
+                    to={`/property/${prop.id}`}
+                    state={{ listing: prop }}
+                    className="mt-3 block w-full py-2 rounded-xl bg-primary text-white text-center text-sm font-medium hover:opacity-90 transition-opacity"
+                  >
+                    Detail
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
