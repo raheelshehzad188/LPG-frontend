@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
   leads: '/api/leads', // Save Lead (AI Chat)
   aiConversation: '/api_new_ai', // AI property search
   admin: {
+    settings: '/api/admin/settings',
     leads: '/api/admin/leads',
     leadReroute: (id) => `/api/admin/leads/${id}/reroute`,
     agents: '/api/admin/agents',

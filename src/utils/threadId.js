@@ -9,7 +9,7 @@ export function generateThreadId() {
 export const THREAD_STORAGE_KEY = 'lpg_ai_thread_id'
 export const CHAT_HISTORY_KEY = 'lpg_ai_chat_history'
 
-/** Get or create persistent thread ID */
+/** Get or create persistent thread ID (same chat ke andar use karo) */
 export function getOrCreateThreadId() {
   try {
     let id = localStorage.getItem(THREAD_STORAGE_KEY)
@@ -21,6 +21,15 @@ export function getOrCreateThreadId() {
   } catch {
     return generateThreadId()
   }
+}
+
+/** New chat start — purana thread ID hatao, naya banao. Pehle screen se naya prompt pe call karo. */
+export function startNewThread() {
+  const id = generateThreadId()
+  try {
+    localStorage.setItem(THREAD_STORAGE_KEY, id)
+  } catch (_) {}
+  return id
 }
 
 /** Load chat history from localStorage */

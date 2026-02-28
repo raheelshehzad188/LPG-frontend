@@ -20,7 +20,13 @@ function getErrorMessage(err) {
 
 partnerApi.interceptors.response.use(
   (r) => r,
-  (err) => Promise.reject(new Error(getErrorMessage(err)))
+  (err) => {
+    const msg = getErrorMessage(err)
+    const e = new Error(msg)
+    e.status = err.response?.status
+    e.code = err.response?.data?.code
+    return Promise.reject(e)
+  }
 )
 
 // Partner token — login ke baad use hoga
@@ -42,10 +48,24 @@ export async function partnerLogin(email, password) {
   return data
 }
 
+const DEFAULT_EXPIRE_MINUTES = 5
+
 /** Normalize lead — backend snake_case ya camelCase dono handle */
 function normalizeLead(l) {
   if (!l) return null
-  const expiresAt = l.expiresAt ?? l.expires_at
+  let expiresAt = l.expiresAt ?? l.expires_at
+  const assignedAt = l.assignedAt ?? l.assigned_at
+  const createdAt = l.createdAt ?? l.created_at
+  const status = l.status ?? 'new'
+
+  // Agar expiresAt nahi aaya aur lead new hai — assigned_at ya created_at + 5 min se compute karo
+  if (!expiresAt && status === 'new') {
+    const base = assignedAt || createdAt || new Date().toISOString()
+    const baseMs = typeof base === 'number' ? base : new Date(base).getTime()
+    expiresAt = baseMs + DEFAULT_EXPIRE_MINUTES * 60 * 1000
+  }
+  if (typeof expiresAt === 'string') expiresAt = new Date(expiresAt).getTime()
+
   return {
     id: l.id,
     name: l.name ?? l.userName ?? l.user_name ?? '—',
@@ -54,11 +74,12 @@ function normalizeLead(l) {
     propertyInterest: l.propertyInterest ?? l.property_interest ?? l.interest ?? '—',
     budget: l.budget ?? '',
     leadScore: l.leadScore ?? l.lead_score ?? l.score ?? 0,
-    status: l.status ?? 'new',
+    status,
     aiSummary: l.aiSummary ?? l.ai_summary ?? '',
     source: l.source ?? 'AI Search',
-    createdAt: l.createdAt ?? l.created_at ?? '',
-    expiresAt: typeof expiresAt === 'string' ? new Date(expiresAt).getTime() : expiresAt,
+    createdAt: createdAt ?? '',
+    assignedAt: assignedAt ?? null,
+    expiresAt,
     ...l,
   }
 }

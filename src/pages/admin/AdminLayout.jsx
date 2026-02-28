@@ -10,6 +10,7 @@ import {
   Database,
   ChevronRight,
   Sparkles,
+  Settings,
 } from 'lucide-react'
 
 const AUTH_KEY = 'lpg_admin_auth'
@@ -18,6 +19,7 @@ const SIDEBAR_ITEMS = [
   { path: '/admin', icon: LayoutDashboard, label: 'Overview' },
   { path: '/admin/leads', icon: UserPlus, label: 'Leads' },
   { path: '/admin/agents', icon: Users, label: 'Agents' },
+  { path: '/admin/settings', icon: Settings, label: 'Settings' },
   { path: '/admin/scraping', icon: Database, label: 'Scraping Status' },
   { path: '/admin/gemini', icon: Sparkles, label: 'Gemini Settings' },
 ]

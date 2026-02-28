@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { aiSearchConversation } from '../api/aiSearchConversation';
 import { API_BASE_URL, API_ENDPOINTS } from '../config';
+import { getOrCreateThreadId } from '../utils/threadId';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AIAssistant({ initialPrompt, onConversation, onFilterListings }) {
@@ -10,26 +11,24 @@ export default function AIAssistant({ initialPrompt, onConversation, onFilterLis
   const [leadCaptured, setLeadCaptured] = useState(false);
   const chatEndRef = useRef(null);
   const autoStartFired = useRef(false);
-  const idleTimerRef = useRef(null);
+  // const idleTimerRef = useRef(null);
 
-  // --- 1. Smart Idle Timer (Agar bnda chup ho to AI attack kare) ---
-  const startIdleTimer = () => {
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = setTimeout(() => {
-      const lastMsg = messages[messages.length - 1];
-      // Agar last message assistant ka tha aur user ne 15s tak jawab nahi diya
-      if (lastMsg && lastMsg.role === 'assistant' && !loading && !leadCaptured) {
-        handleSend("ACT_AS_SALES_CLOSER_URGENCY");
-      }
-    }, 15000); 
-  };
+  // --- Smart Idle Timer (DISABLED - agar bnda chup ho to AI auto request karta tha) ---
+  // const startIdleTimer = () => {
+  //   if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+  //   idleTimerRef.current = setTimeout(() => {
+  //     const lastMsg = messages[messages.length - 1];
+  //     if (lastMsg && lastMsg.role === 'assistant' && !loading && !leadCaptured) {
+  //       handleSend("ACT_AS_SALES_CLOSER_URGENCY");
+  //     }
+  //   }, 15000);
+  // };
+  // useEffect(() => {
+  //   if (messages.length > 0) startIdleTimer();
+  //   return () => clearTimeout(idleTimerRef.current);
+  // }, [messages, loading]);
 
-  useEffect(() => {
-    if (messages.length > 0) startIdleTimer();
-    return () => clearTimeout(idleTimerRef.current);
-  }, [messages, loading]);
-
-  // --- 2. Lead Database Saving Logic ---
+  // --- 1. Lead Database Saving Logic ---
   const saveLeadToDB = async (phoneText) => {
     try {
       // Phone number extract karne ke liye regex
@@ -56,7 +55,7 @@ export default function AIAssistant({ initialPrompt, onConversation, onFilterLis
     }
   };
 
-  // --- 3. Chat Logic ---
+  // --- 2. Chat Logic ---
   useEffect(() => {
     if (!initialPrompt?.trim() || autoStartFired.current) return;
     autoStartFired.current = true;
@@ -77,7 +76,7 @@ export default function AIAssistant({ initialPrompt, onConversation, onFilterLis
     const text = forcedText || input;
     if (!text.trim() || loading) return;
 
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    // if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
 
     if (!forcedText) {
       setMessages(prev => [...prev, { role: 'user', content: text }]);
@@ -93,15 +92,16 @@ export default function AIAssistant({ initialPrompt, onConversation, onFilterLis
 
     try {
       const context = isFirst ? [] : messages.slice(-6);
-      let queryPayload = text;
+      const queryPayload = text;
+      // if (forcedText === "ACT_AS_SALES_CLOSER_URGENCY") {
+      //   queryPayload = "User is silent. Create urgency. Tell them deals are closing fast and strictly ask for their WhatsApp to send location maps/PDFs.";
+      // }
 
-      if (forcedText === "ACT_AS_SALES_CLOSER_URGENCY") {
-        queryPayload = "User is silent. Create urgency. Tell them deals are closing fast and strictly ask for their WhatsApp to send location maps/PDFs.";
-      }
-
+      const threadId = getOrCreateThreadId(); // Same chat = same ID (handleSearch ne naya chat pe startNewThread kiya)
+      const payload = { query: queryPayload, messages: context, threadId };
       const response = await (onConversation 
-        ? onConversation({ query: queryPayload, messages: context }) 
-        : aiSearchConversation({ query: queryPayload, messages: context }));
+        ? onConversation(payload) 
+        : aiSearchConversation(payload));
       
       const reply = response?.reply ?? response?.question ?? 'Behtreen! Mazeed details ke liye apna contact number share karein.';
       

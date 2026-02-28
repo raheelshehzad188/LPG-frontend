@@ -37,6 +37,18 @@ adminApi.interceptors.response.use(
   (err) => Promise.reject(new Error(getErrorMessage(err)))
 )
 
+/** GET /api/admin/settings - Lead expiry & other admin settings */
+export async function getAdminSettings() {
+  const { data } = await adminApi.get(API_ENDPOINTS.admin.settings)
+  return data
+}
+
+/** PUT /api/admin/settings - Save leadExpireMinutes (1-60) */
+export async function saveAdminSettings(payload) {
+  const { data } = await adminApi.put(API_ENDPOINTS.admin.settings, payload)
+  return data
+}
+
 /** POST /api/auth/admin/login - Admin Login */
 export async function adminLogin(email, password) {
   const { data } = await adminApi.post(API_ENDPOINTS.auth.adminLogin, { email, password })

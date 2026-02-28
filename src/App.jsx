@@ -11,11 +11,13 @@ import AdminOverview from './pages/admin/AdminOverview'
 import AdminLeads from './pages/admin/AdminLeads'
 import AdminAgents from './pages/admin/AdminAgents'
 import AdminScraping from './pages/admin/AdminScraping'
+import AdminSettings from './pages/admin/AdminSettings'
 import AdminGeminiSettings from './pages/admin/AdminGeminiSettings'
 import AdminLogin from './pages/AdminLogin'
 import PartnerLayout from './components/PartnerLayout'
 import AdminAuthLayout from './components/AdminLayout'
 import { aiSearchConversation } from './api/aiSearchConversation'
+import { startNewThread } from './utils/threadId'
 
 export default function App() {
   const [screen, setScreen] = useState('home')
@@ -24,22 +26,23 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // ✅ FIXED: Ab ye function API call nahi karta, sirf screen change karta hai
+  // ✅ New chat = naya thread ID. Same chat mein wahi thread ID pass hota rahega.
   const handleSearch = useCallback((prompt) => {
-    console.log('🚀 Moving to ListingsView with:', prompt)
+    startNewThread() // Purana thread hatao, naya banao
     setError(null)
     setInitialPrompt(prompt)
-    setListings([]) // Shuru mein empty rakhein taake AI khud dhoonde
-    setScreen('listings') 
+    setListings([])
+    setScreen('listings')
   }, [])
 
-  // ✅ AI CONVERSATION: Ye ListingsView ke andar se aik baar call hoga
-  const handleConversation = useCallback(async ({ query, messages }) => {
+  // ✅ AI CONVERSATION: threadId pass hota hai — same chat mein same, naya chat mein naya
+  const handleConversation = useCallback(async ({ query, messages, threadId }) => {
     setLoading(true)
     try {
       const res = await aiSearchConversation({
         query,
-        messages: messages || []
+        messages: messages || [],
+        threadId,
       })
       
       if (res.listings) {
@@ -77,6 +80,7 @@ export default function App() {
             <Route index element={<AdminOverview />} />
             <Route path="leads" element={<AdminLeads />} />
             <Route path="agents" element={<AdminAgents />} />
+            <Route path="settings" element={<AdminSettings />} />
             <Route path="scraping" element={<AdminScraping />} />
             <Route path="gemini" element={<AdminGeminiSettings />} />
           </Route>

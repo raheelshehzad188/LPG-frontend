@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   LogOut,
-  Clock,
   Check,
   X,
   RefreshCw,
@@ -14,40 +13,73 @@ import {
 import { KANBAN_COLUMNS } from '../data/mockLeads'
 import { getPartnerLeads, acceptLead, rejectLead, updateLeadStatus } from '../api/partnerApi'
 
-function LeadCard({ lead, onAccept, onReject, onMove }) {
-  const [timeLeft, setTimeLeft] = useState(null)
+function LeadCard({ lead, onAccept, onReject, onMove, onExpired }) {
+  const [timeLeft, setTimeLeft] = useState({ ms: 0, expired: false })
+  const expiredFired = React.useRef(false)
   const isNew = lead.status === 'new'
 
   useEffect(() => {
     if (!isNew || !lead.expiresAt) return
     const tick = () => {
-      const left = lead.expiresAt - Date.now()
-      if (left <= 0) {
-        setTimeLeft('Expired')
-        return
+      const ms = lead.expiresAt - Date.now()
+      if (ms <= 0 && !expiredFired.current) {
+        expiredFired.current = true
+        onExpired?.()
       }
-      const m = Math.floor(left / 60000)
-      const s = Math.floor((left % 60000) / 1000)
-      setTimeLeft(`${m}:${s.toString().padStart(2, '0')}`)
+      setTimeLeft({ ms: Math.max(0, ms), expired: ms <= 0 })
     }
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [isNew, lead.expiresAt])
+  }, [isNew, lead.expiresAt, onExpired])
 
-  const expired = isNew && lead.expiresAt && Date.now() > lead.expiresAt
+  const expired = isNew && (timeLeft.expired || (lead.expiresAt && Date.now() > lead.expiresAt))
+  const assignedMs = lead.assignedAt ? (typeof lead.assignedAt === 'number' ? lead.assignedAt : new Date(lead.assignedAt).getTime()) : null
+  const totalDurationMs = lead.expiresAt && assignedMs ? lead.expiresAt - assignedMs : 5 * 60 * 1000
+  const progressPct = totalDurationMs > 0 ? Math.min(100, (timeLeft.ms / totalDurationMs) * 100) : 0
+  const isUrgent = timeLeft.ms > 0 && timeLeft.ms < 60 * 1000 // < 1 min
+
+  const formatTime = (ms) => {
+    if (ms <= 0) return '0:00'
+    const m = Math.floor(ms / 60000)
+    const s = Math.floor((ms % 60000) / 1000)
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
 
   return (
-    <div className="rounded-xl bg-white/5 border border-white/10 p-4 hover:border-primary/30 transition-colors">
+    <div className={`rounded-xl bg-white/5 border p-4 transition-all hover:border-primary/30 ${
+      isNew && isUrgent ? 'border-amber-500/50 shadow-lg shadow-amber-500/10' : 'border-white/10'
+    }`}>
       <div className="flex justify-between items-start mb-2">
         <span className="px-2 py-0.5 rounded-lg bg-primary/20 text-primary text-xs font-semibold">
           Score: {lead.leadScore}
         </span>
         {isNew && (
-          <span className="flex items-center gap-1 text-amber-400 text-xs">
-            <Clock className="w-3 h-3" />
-            {expired ? 'Expired' : timeLeft}
-          </span>
+          <div className="flex flex-col items-end gap-0.5">
+            <div className="relative flex items-center justify-center">
+              <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/10" />
+                <circle
+                  cx="18" cy="18" r="15.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  className={expired ? 'text-red-500' : isUrgent ? 'text-amber-400' : 'text-emerald-500'}
+                  strokeDasharray={`${(progressPct / 100) * 97} 97`}
+                  style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                />
+              </svg>
+              <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums ${
+                expired ? 'text-red-400' : isUrgent ? 'text-amber-400 animate-pulse' : 'text-emerald-400'
+              }`}>
+                {expired ? '!' : formatTime(timeLeft.ms)}
+              </span>
+            </div>
+            <span className={`text-[10px] font-medium ${expired ? 'text-red-400' : isUrgent ? 'text-amber-400' : 'text-slate-500'}`}>
+              {expired ? 'Expired' : 'baqi'}
+            </span>
+          </div>
         )}
       </div>
       <h4 className="font-semibold text-white">{lead.name}</h4>
@@ -143,6 +175,8 @@ export default function PartnerDashboard() {
       )
     } catch (err) {
       setApiError(err.message)
+      // 410 = Lead expired, backend unlinked it — refresh list
+      if (err.status === 410 || err.code === 'LEAD_EXPIRED') fetchLeads()
     }
   }
 
@@ -223,7 +257,7 @@ export default function PartnerDashboard() {
         )}
 
         <p className="text-slate-400 text-sm mb-6">
-          New leads ke paas 5 minute hote hain accept karne ke liye. Reject karne par lead agali agency ko transfer ho jayegi.
+          Naye lead par timer chalta hai — jitna time baqi hai woh dikhai deta hai. 5 min ke andar accept karo, warna lead unlink ho jayegi. Reject karne par lead agali agency ko assign ho sakti hai.
         </p>
 
         {loading ? (
@@ -262,6 +296,7 @@ export default function PartnerDashboard() {
                       onAccept={handleAccept}
                       onReject={handleReject}
                       onMove={handleMove}
+                      onExpired={fetchLeads}
                     />
                   ))}
                 </div>
